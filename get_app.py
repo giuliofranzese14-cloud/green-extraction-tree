@@ -248,34 +248,60 @@ for method in st.session_state.methods:
 
     st.subheader("Green Extraction Tree")
 
-    dot = Digraph()
+   dot = Digraph()
 
-    dot.attr(rankdir="TB")
+dot.attr(
+    rankdir="TB",
+    ranksep="1.5",
+    nodesep="0.8",
+    bgcolor="white"
+)
 
-    dot.node("GET","GET",shape="box")
+dot.attr(
+    "node",
+    shape="box",
+    style="filled",
+    fontname="Helvetica",
+    fontsize="12"
+)
 
-    for branch in method["tree"]:
+dot.node("GET","Green Extraction Tree",fillcolor="#e6f2ff")
 
-        dot.node(branch,branch,shape="ellipse")
+for branch in method["tree"]:
 
-        dot.edge("GET",branch)
+    branch_id = f"branch_{branch}"
 
-        for name,value in method["tree"][branch]:
+    dot.node(
+        branch_id,
+        branch,
+        shape="ellipse",
+        fillcolor="#d9ead3"
+    )
 
-            node_id = f"{branch}_{name}"
+    dot.edge("GET",branch_id)
 
-            if value==2:
-                color="green"
-            elif value==1:
-                color="yellow"
-            else:
-                color="red"
+    for name,value in method["tree"][branch]:
 
-            dot.node(node_id,label=name,style="filled",fillcolor=color)
+        node_id = f"{branch}_{name}"
 
-            dot.edge(branch,node_id)
+        if value == 2:
+            color = "#4CAF50"
+        elif value == 1:
+            color = "#FFC107"
+        else:
+            color = "#F44336"
 
-    st.graphviz_chart(dot)
+        dot.node(
+            node_id,
+            label=name,
+            fillcolor=color,
+            width="1.6",
+            height="0.8"
+        )
+
+        dot.edge(branch_id,node_id)
+
+st.graphviz_chart(dot,use_container_width=True)
 
 # -----------------------------
 # RADAR COMPARISON
