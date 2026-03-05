@@ -4,13 +4,14 @@ import plotly.graph_objects as go
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+from graphviz import Digraph
 
-st.set_page_config(page_title="Green Extraction Tree 5.0", layout="wide")
+st.set_page_config(page_title="Green Extraction Tree 6.0", layout="wide")
 
-st.title("🌿 Green Extraction Tree Evaluator 5.0")
+st.title("🌿 Green Extraction Tree Evaluator 6.0")
 
 st.markdown("""
-Interactive tool implementing the **Green Extraction Tree (GET)** methodology.
+Interactive platform implementing the **Green Extraction Tree (GET)** methodology.
 
 Green = 2  
 Yellow = 1  
@@ -152,18 +153,18 @@ def score_scalability(s):
 
 
 # ------------------------------------------------
-# METHOD STORAGE
+# SESSION STORAGE
 # ------------------------------------------------
 
 if "methods" not in st.session_state:
-
     st.session_state.methods = []
+
 
 # ------------------------------------------------
 # SIDEBAR INPUT
 # ------------------------------------------------
 
-st.sidebar.header("Extraction Parameters")
+st.sidebar.header("Extraction parameters")
 
 method_name = st.sidebar.text_input("Method name")
 
@@ -183,7 +184,7 @@ throughput = st.sidebar.number_input("Samples/hour",1,100,5)
 
 hazard = st.sidebar.selectbox("Hazard level",["Low","Medium","High"])
 
-renewable = st.sidebar.selectbox("Renewable sample",["Yes","Partially","No"])
+renewable = st.sidebar.selectbox("Renewable raw material",["Yes","Partially","No"])
 
 sample_stability = st.sidebar.selectbox("Sample stability",["Stable","Moderate","Unstable"])
 
@@ -193,7 +194,7 @@ scalability = st.sidebar.selectbox("Industrial scalability",["High","Moderate","
 
 
 # ------------------------------------------------
-# GET TREE CALCULATION
+# GET CALCULATION
 # ------------------------------------------------
 
 def compute_get():
@@ -205,7 +206,7 @@ def compute_get():
 ("Sample stability",score_stability(sample_stability))
 ],
 
-"Solvents & reagents":[
+"Solvents":[
 ("Solvent toxicity",score_solvent(solvent)),
 ("Solvent amount",score_volume(volume))
 ],
@@ -234,8 +235,8 @@ def compute_get():
 
 }
 
-    labels = []
-    scores = []
+    labels=[]
+    scores=[]
 
     for branch in tree:
 
@@ -244,18 +245,18 @@ def compute_get():
             labels.append(item[0])
             scores.append(item[1])
 
-    total = sum(scores)
+    total=sum(scores)
 
-    return tree, labels, scores, total
+    return tree,labels,scores,total
 
 
 # ------------------------------------------------
-# ADD METHOD BUTTON
+# ADD METHOD
 # ------------------------------------------------
 
 if st.sidebar.button("Add method"):
 
-    tree, labels, scores, total = compute_get()
+    tree,labels,scores,total = compute_get()
 
     st.session_state.methods.append({
 
@@ -272,46 +273,49 @@ if st.sidebar.button("Add method"):
 # DISPLAY METHODS
 # ------------------------------------------------
 
-if len(st.session_state.methods) > 0:
+for method in st.session_state.methods:
 
-    for method in st.session_state.methods:
+    st.header(method["name"])
 
-        st.header(method["name"])
+    st.metric("GET Score",f'{method["total"]}/28')
 
-        st.metric("GET Score",f'{method["total"]}/28')
+    st.subheader("GET Tree")
 
-        if method["total"] >=22:
-            st.success("Excellent greenness")
-        elif method["total"] >=15:
-            st.warning("Moderate greenness")
-        else:
-            st.error("Low greenness")
+    dot = Digraph()
 
-        st.subheader("GET Tree")
+    dot.node("GET","GET")
 
-        for branch in method["tree"]:
+    for branch in method["tree"]:
 
-            st.write("###",branch)
+        dot.node(branch,branch)
 
-            for name,value in method["tree"][branch]:
+        dot.edge("GET",branch)
 
-                if value == 2:
-                    icon = "🟢"
-                elif value == 1:
-                    icon = "🟡"
-                else:
-                    icon = "🔴"
+        for name,value in method["tree"][branch]:
 
-                st.write(icon,name)
+            node = name
+
+            if value==2:
+                color="green"
+            elif value==1:
+                color="yellow"
+            else:
+                color="red"
+
+            dot.node(node,style="filled",fillcolor=color)
+
+            dot.edge(branch,node)
+
+    st.graphviz_chart(dot)
 
 
 # ------------------------------------------------
-# COMPARISON SECTION
+# COMPARISON
 # ------------------------------------------------
 
 if len(st.session_state.methods) > 1:
 
-    st.header("Method Comparison")
+    st.header("Radar comparison")
 
     radar = go.Figure()
 
@@ -326,14 +330,10 @@ if len(st.session_state.methods) > 1:
 
         ))
 
-    radar.update_layout(
-
-    polar=dict(radialaxis=dict(range=[0,2])),
-    showlegend=True
-
-    )
+    radar.update_layout(polar=dict(radialaxis=dict(range=[0,2])))
 
     st.plotly_chart(radar,use_container_width=True)
+
 
 # ------------------------------------------------
 # RANKING
@@ -349,20 +349,21 @@ if len(st.session_state.methods) > 1:
 
     )
 
+    st.header("Greenest method ranking")
+
     rank_df = pd.DataFrame({
 
     "Method":[m["name"] for m in ranking],
-    "GET Score":[m["total"] for m in ranking]
+    "GET score":[m["total"] for m in ranking]
 
     })
 
-    st.header("Greenest Method Ranking")
-
     st.dataframe(rank_df)
 
-    fig = px.bar(rank_df,x="Method",y="GET Score",color="Method")
+    fig = px.bar(rank_df,x="Method",y="GET score",color="Method")
 
     st.plotly_chart(fig,use_container_width=True)
+
 
 # ------------------------------------------------
 # HEATMAP
@@ -370,15 +371,15 @@ if len(st.session_state.methods) > 1:
 
 if len(st.session_state.methods) > 1:
 
-    st.header("Score Heatmap")
+    st.header("Score heatmap")
 
-    matrix = [m["scores"] for m in st.session_state.methods]
+    matrix=[m["scores"] for m in st.session_state.methods]
 
     labels = st.session_state.methods[0]["labels"]
 
-    names = [m["name"] for m in st.session_state.methods]
+    names=[m["name"] for m in st.session_state.methods]
 
-    fig, ax = plt.subplots()
+    fig,ax=plt.subplots()
 
     sns.heatmap(matrix,
                 annot=True,
@@ -388,29 +389,30 @@ if len(st.session_state.methods) > 1:
 
     st.pyplot(fig)
 
+
 # ------------------------------------------------
 # EXPORT
 # ------------------------------------------------
 
 if len(st.session_state.methods) > 0:
 
-    rows = []
+    rows=[]
 
     for m in st.session_state.methods:
 
-        for i,criterion in enumerate(m["labels"]):
+        for i,c in enumerate(m["labels"]):
 
             rows.append({
 
             "Method":m["name"],
-            "Criterion":criterion,
+            "Criterion":c,
             "Score":m["scores"][i]
 
             })
 
-    export_df = pd.DataFrame(rows)
+    df=pd.DataFrame(rows)
 
-    csv = export_df.to_csv(index=False)
+    csv=df.to_csv(index=False)
 
     st.download_button(
 
