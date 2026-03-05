@@ -5,19 +5,16 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Green Extraction Tree", layout="wide")
+st.set_page_config(page_title="Green Extraction Tree Evaluator", layout="wide")
 
 st.title("Green Extraction Tree (GET) – Extraction Sustainability Evaluator")
 
 st.markdown("""
-Interactive tool to evaluate the **greenness of extraction methods** according to the
-Green Extraction Tree framework.
+Interactive tool for evaluating the **greenness of extraction methods**
+according to the **Green Extraction Tree (GET)** framework.
 
-Compare different extraction techniques such as:
-
-- Soxhlet extraction
-- Ultrasound-assisted extraction (UAE)
-- Maceration
+Compare different extraction techniques and visualize their sustainability
+profile across **14 criteria**.
 """)
 
 criteria = [
@@ -40,12 +37,13 @@ criteria = [
 score_map = {"Green":2,"Yellow":1,"Red":0}
 
 methods = st.multiselect(
-"Select extraction methods to evaluate",
-["Soxhlet","Ultrasound (UAE)","Maceration"],
+"Select extraction methods",
+["Soxhlet","Ultrasound (UAE)","Maceration","Microwave (MAE)","Supercritical CO2"],
 default=["Soxhlet"]
 )
 
 results = {}
+answers_store = {}
 
 for method in methods:
 
@@ -55,11 +53,12 @@ for method in methods:
     scores=[]
 
     for c in criteria:
+
         choice = st.radio(
             c,
             ["Green","Yellow","Red"],
-            key=method+c,
-            horizontal=True
+            horizontal=True,
+            key=f"{method}_{c}"
         )
 
         answers.append(choice)
@@ -68,8 +67,9 @@ for method in methods:
     total_score=sum(scores)
 
     results[method]=scores
+    answers_store[method]=answers
 
-    st.subheader(f"Total Score: {total_score} / 28")
+    st.subheader(f"Total GET Score: {total_score} / 28")
 
     if total_score>=22:
         st.success("Excellent greenness")
@@ -78,88 +78,110 @@ for method in methods:
     else:
         st.error("Low greenness")
 
-st.header("Radar comparison")
+st.divider()
 
-fig=go.Figure()
+if len(results)>0:
 
-for method in results:
+    st.header("Greenness Radar Profile")
 
-    fig.add_trace(go.Scatterpolar(
-        r=results[method],
-        theta=criteria,
-        fill="toself",
-        name=method
-    ))
+    fig=go.Figure()
 
-fig.update_layout(
-polar=dict(radialaxis=dict(range=[0,2],visible=True)),
-showlegend=True
-)
+    for method in results:
 
-st.plotly_chart(fig,use_container_width=True)
+        fig.add_trace(go.Scatterpolar(
+            r=results[method],
+            theta=criteria,
+            fill="toself",
+            name=method
+        ))
 
-st.header("Score comparison")
+    fig.update_layout(
+    polar=dict(radialaxis=dict(range=[0,2],visible=True)),
+    showlegend=True
+    )
 
-scores_summary={
-method:sum(results[method]) for method in results
-}
+    st.plotly_chart(fig,use_container_width=True)
 
-df_scores=pd.DataFrame({
-"Method":list(scores_summary.keys()),
-"Score":list(scores_summary.values())
-})
+    st.divider()
 
-fig_bar=px.bar(
-df_scores,
-x="Method",
-y="Score",
-color="Method",
-title="Greenness score comparison"
-)
+    st.header("Greenness Score Comparison")
 
-st.plotly_chart(fig_bar,use_container_width=True)
+    score_summary={
+    m:sum(results[m]) for m in results
+    }
 
-st.header("Heatmap comparison")
+    df_scores=pd.DataFrame({
+    "Method":list(score_summary.keys()),
+    "Score":list(score_summary.values())
+    })
 
-matrix=list(results.values())
+    fig_bar=px.bar(
+    df_scores,
+    x="Method",
+    y="Score",
+    color="Method",
+    title="GET score comparison"
+    )
 
-if len(matrix)>0:
+    st.plotly_chart(fig_bar,use_container_width=True)
 
-    fig_heat,ax=plt.subplots()
+    st.divider()
+
+    st.header("Criterion Heatmap")
+
+    matrix=list(results.values())
+
+    fig_heat,ax=plt.subplots(figsize=(12,4))
 
     sns.heatmap(
-        matrix,
-        annot=True,
-        cmap="RdYlGn",
-        xticklabels=criteria,
-        yticklabels=list(results.keys())
+    matrix,
+    annot=True,
+    cmap="RdYlGn",
+    xticklabels=criteria,
+    yticklabels=list(results.keys())
     )
 
     st.pyplot(fig_heat)
 
-st.header("Download results")
+    st.divider()
 
-export_data=[]
+    st.header("Download Results")
 
-for method in results:
+    export_rows=[]
 
-    for i,c in enumerate(criteria):
+    for method in results:
 
-        export_data.append({
+        for i,c in enumerate(criteria):
+
+            export_rows.append({
             "Method":method,
             "Criterion":c,
+            "Choice":answers_store[method][i],
             "Score":results[method][i]
-        })
+            })
 
-df_export=pd.DataFrame(export_data)
+    df_export=pd.DataFrame(export_rows)
 
-st.download_button(
-"Download results CSV",
-df_export.to_csv(index=False),
-file_name="green_extraction_results.csv"
-)
+    st.download_button(
+    "Download results as CSV",
+    df_export.to_csv(index=False),
+    file_name="green_extraction_results.csv"
+    )
 
-st.markdown("---")
-st.markdown("Green Extraction Tree evaluation tool")
+st.divider()
 
-   
+st.markdown("""
+### About GET
+
+The **Green Extraction Tree (GET)** evaluates extraction sustainability
+through **14 criteria covering solvent use, energy consumption,
+waste generation, operational safety and extraction performance**.
+
+Each criterion receives:
+
+- Green = 2  
+- Yellow = 1  
+- Red = 0  
+
+Maximum score: **28 points**.
+""")
