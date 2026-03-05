@@ -6,9 +6,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
-st.set_page_config(page_title="Green Extraction Tree 6.0", layout="wide")
+st.set_page_config(page_title="Green Extraction Tree Evaluator", layout="wide")
 
-st.title("🌿 Green Extraction Tree Evaluator 6.0")
+st.title("🌿 Green Extraction Tree Evaluator")
 
 st.markdown("""
 Interactive platform implementing the **Green Extraction Tree (GET)** methodology.
@@ -20,12 +20,11 @@ Red = 0
 Maximum score = **28**
 """)
 
-# ------------------------------------------------
+# -----------------------------
 # SOLVENT DATABASE
-# ------------------------------------------------
+# -----------------------------
 
 solvent_db = {
-
 "Water":{"toxicity":0},
 "Ethanol":{"toxicity":1},
 "Methanol":{"toxicity":2},
@@ -33,17 +32,14 @@ solvent_db = {
 "Hexane":{"toxicity":3},
 "Dichloromethane":{"toxicity":4},
 "Chloroform":{"toxicity":5}
-
 }
 
-# ------------------------------------------------
+# -----------------------------
 # SCORING FUNCTIONS
-# ------------------------------------------------
+# -----------------------------
 
 def score_solvent(solvent):
-
     tox = solvent_db[solvent]["toxicity"]
-
     if tox <=1:
         return 2
     elif tox <=3:
@@ -51,9 +47,7 @@ def score_solvent(solvent):
     else:
         return 0
 
-
 def score_volume(v):
-
     if v < 50:
         return 2
     elif v < 200:
@@ -61,9 +55,7 @@ def score_volume(v):
     else:
         return 0
 
-
 def score_energy(e):
-
     if e < 0.5:
         return 2
     elif e < 2:
@@ -71,9 +63,7 @@ def score_energy(e):
     else:
         return 0
 
-
 def score_time(t):
-
     if t < 30:
         return 2
     elif t < 120:
@@ -81,9 +71,7 @@ def score_time(t):
     else:
         return 0
 
-
 def score_yield(y):
-
     if y > 80:
         return 2
     elif y > 50:
@@ -91,9 +79,7 @@ def score_yield(y):
     else:
         return 0
 
-
 def score_waste(w):
-
     if w < 5:
         return 2
     elif w < 20:
@@ -101,9 +87,7 @@ def score_waste(w):
     else:
         return 0
 
-
 def score_throughput(t):
-
     if t > 20:
         return 2
     elif t > 5:
@@ -111,9 +95,7 @@ def score_throughput(t):
     else:
         return 0
 
-
 def score_hazard(h):
-
     if h == "Low":
         return 2
     elif h == "Medium":
@@ -121,9 +103,7 @@ def score_hazard(h):
     else:
         return 0
 
-
 def score_stability(s):
-
     if s == "Stable":
         return 2
     elif s == "Moderate":
@@ -131,9 +111,7 @@ def score_stability(s):
     else:
         return 0
 
-
 def score_renewable(r):
-
     if r == "Yes":
         return 2
     elif r == "Partially":
@@ -141,9 +119,7 @@ def score_renewable(r):
     else:
         return 0
 
-
 def score_scalability(s):
-
     if s == "High":
         return 2
     elif s == "Moderate":
@@ -151,18 +127,16 @@ def score_scalability(s):
     else:
         return 0
 
-
-# ------------------------------------------------
+# -----------------------------
 # SESSION STORAGE
-# ------------------------------------------------
+# -----------------------------
 
 if "methods" not in st.session_state:
     st.session_state.methods = []
 
-
-# ------------------------------------------------
+# -----------------------------
 # SIDEBAR INPUT
-# ------------------------------------------------
+# -----------------------------
 
 st.sidebar.header("Extraction parameters")
 
@@ -192,10 +166,9 @@ extract_stability = st.sidebar.selectbox("Extract stability",["Stable","Moderate
 
 scalability = st.sidebar.selectbox("Industrial scalability",["High","Moderate","Low"])
 
-
-# ------------------------------------------------
+# -----------------------------
 # GET CALCULATION
-# ------------------------------------------------
+# -----------------------------
 
 def compute_get():
 
@@ -239,9 +212,7 @@ def compute_get():
     scores=[]
 
     for branch in tree:
-
         for item in tree[branch]:
-
             labels.append(item[0])
             scores.append(item[1])
 
@@ -249,29 +220,25 @@ def compute_get():
 
     return tree,labels,scores,total
 
-
-# ------------------------------------------------
+# -----------------------------
 # ADD METHOD
-# ------------------------------------------------
+# -----------------------------
 
 if st.sidebar.button("Add method"):
 
     tree,labels,scores,total = compute_get()
 
     st.session_state.methods.append({
+    "name":method_name,
+    "tree":tree,
+    "labels":labels,
+    "scores":scores,
+    "total":total
+    })
 
-"name":method_name,
-"tree":tree,
-"labels":labels,
-"scores":scores,
-"total":total
-
-})
-
-
-# ------------------------------------------------
-# DISPLAY METHODS
-# ------------------------------------------------
+# -----------------------------
+# DISPLAY METHODS + TREE
+# -----------------------------
 
 for method in st.session_state.methods:
 
@@ -279,21 +246,23 @@ for method in st.session_state.methods:
 
     st.metric("GET Score",f'{method["total"]}/28')
 
-    st.subheader("GET Tree")
+    st.subheader("Green Extraction Tree")
 
     dot = Digraph()
 
-    dot.node("GET","GET")
+    dot.attr(rankdir="TB")
+
+    dot.node("GET","GET",shape="box")
 
     for branch in method["tree"]:
 
-        dot.node(branch,branch)
+        dot.node(branch,branch,shape="ellipse")
 
         dot.edge("GET",branch)
 
         for name,value in method["tree"][branch]:
 
-            node = name
+            node_id = f"{branch}_{name}"
 
             if value==2:
                 color="green"
@@ -302,16 +271,15 @@ for method in st.session_state.methods:
             else:
                 color="red"
 
-            dot.node(node,style="filled",fillcolor=color)
+            dot.node(node_id,label=name,style="filled",fillcolor=color)
 
-            dot.edge(branch,node)
+            dot.edge(branch,node_id)
 
     st.graphviz_chart(dot)
 
-
-# ------------------------------------------------
-# COMPARISON
-# ------------------------------------------------
+# -----------------------------
+# RADAR COMPARISON
+# -----------------------------
 
 if len(st.session_state.methods) > 1:
 
@@ -322,40 +290,33 @@ if len(st.session_state.methods) > 1:
     for method in st.session_state.methods:
 
         radar.add_trace(go.Scatterpolar(
-
         r=method["scores"],
         theta=method["labels"],
         fill="toself",
         name=method["name"]
-
         ))
 
     radar.update_layout(polar=dict(radialaxis=dict(range=[0,2])))
 
     st.plotly_chart(radar,use_container_width=True)
 
-
-# ------------------------------------------------
+# -----------------------------
 # RANKING
-# ------------------------------------------------
+# -----------------------------
 
 if len(st.session_state.methods) > 1:
 
     ranking = sorted(
-
     st.session_state.methods,
     key=lambda x: x["total"],
     reverse=True
-
     )
 
     st.header("Greenest method ranking")
 
     rank_df = pd.DataFrame({
-
     "Method":[m["name"] for m in ranking],
     "GET score":[m["total"] for m in ranking]
-
     })
 
     st.dataframe(rank_df)
@@ -364,10 +325,9 @@ if len(st.session_state.methods) > 1:
 
     st.plotly_chart(fig,use_container_width=True)
 
-
-# ------------------------------------------------
+# -----------------------------
 # HEATMAP
-# ------------------------------------------------
+# -----------------------------
 
 if len(st.session_state.methods) > 1:
 
@@ -389,25 +349,20 @@ if len(st.session_state.methods) > 1:
 
     st.pyplot(fig)
 
-
-# ------------------------------------------------
-# EXPORT
-# ------------------------------------------------
+# -----------------------------
+# EXPORT CSV
+# -----------------------------
 
 if len(st.session_state.methods) > 0:
 
     rows=[]
 
     for m in st.session_state.methods:
-
         for i,c in enumerate(m["labels"]):
-
             rows.append({
-
             "Method":m["name"],
             "Criterion":c,
             "Score":m["scores"][i]
-
             })
 
     df=pd.DataFrame(rows)
@@ -415,12 +370,8 @@ if len(st.session_state.methods) > 0:
     csv=df.to_csv(index=False)
 
     st.download_button(
-
     "Download results CSV",
     csv,
     "GET_results.csv",
     "text/csv"
-
     )
- 
-    st.graphviz_chart(dot)
