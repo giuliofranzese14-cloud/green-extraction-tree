@@ -2,135 +2,213 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Green Extraction Evaluator", layout="wide")
+st.set_page_config(page_title="Green Extraction Tree Lab", layout="wide")
 
-st.title("Green Extraction Evaluator")
+st.title("Green Extraction Tree (GET) Evaluator")
 
 st.markdown("""
-Interactive platform for evaluating the **greenness of extraction methods**
-based on the **Green Extraction Tree (GET)** framework.
+Interactive evaluation tool for assessing the **greenness of extraction methods**
+according to the **Green Extraction Tree (GET)** framework.
+
+Each criterion receives:
+
+Green = 2  
+Yellow = 1  
+Red = 0  
+
+Maximum GET score = **28**.
 """)
 
-st.sidebar.header("Extraction parameters")
+criteria_tree = {
+"Sample": [
+"Renewable raw material",
+"Sample stability"
+],
 
-method = st.sidebar.selectbox(
-"Extraction method",
-["Soxhlet","Ultrasound (UAE)","Maceration"]
-)
+"Solvents & Reagents": [
+"Solvent toxicity",
+"Solvent amount"
+],
 
-solvent = st.sidebar.selectbox(
-"Solvent",
-["Water","Ethanol","Ethyl acetate","Hexane"]
-)
+"Energy": [
+"Energy consumption",
+"Process time"
+],
 
-solvent_volume = st.sidebar.slider(
-"Solvent volume (mL)",
-10,500,50
-)
+"Waste & Byproducts": [
+"Waste generation",
+"Byproducts formation"
+],
 
-energy = st.sidebar.slider(
-"Energy consumption (kWh)",
-0.1,5.0,1.0
-)
+"Process Risk": [
+"Operational safety",
+"Health hazards"
+],
 
-yield_value = st.sidebar.slider(
-"Extraction yield (%)",
-10,100,80
-)
-
-time = st.sidebar.slider(
-"Extraction time (min)",
-10,600,120
-)
-
-score = 0
-
-if solvent in ["Water","Ethanol"]:
-    solvent_score = 2
-else:
-    solvent_score = 0
-
-score += solvent_score
-
-if solvent_volume < 100:
-    score += 2
-elif solvent_volume < 200:
-    score += 1
-
-if energy < 1:
-    score += 2
-elif energy < 2:
-    score += 1
-
-if yield_value > 80:
-    score += 2
-elif yield_value > 60:
-    score += 1
-
-if time < 120:
-    score += 2
-elif time < 240:
-    score += 1
-
-st.header("Greenness score")
-
-st.metric("GET score",score)
-
-if score >= 8:
-    st.success("High greenness")
-elif score >=5:
-    st.warning("Moderate greenness")
-else:
-    st.error("Low greenness")
-
-st.header("Greenness profile")
-
-categories = [
-"Solvent safety",
-"Solvent amount",
-"Energy",
-"Extraction time",
-"Yield"
+"Extract Quality": [
+"Extraction efficiency",
+"Extract stability",
+"Industrial scalability",
+"Throughput"
 ]
+}
 
-values = [
-solvent_score,
-2 if solvent_volume <100 else 1,
-2 if energy<1 else 1,
-2 if time<120 else 1,
-2 if yield_value>80 else 1
-]
+score_map = {"Green":2,"Yellow":1,"Red":0}
 
-fig = go.Figure()
-
-fig.add_trace(go.Scatterpolar(
-r=values,
-theta=categories,
-fill="toself",
-name=method
-))
-
-fig.update_layout(
-polar=dict(radialaxis=dict(range=[0,2])),
-showlegend=False
+methods = st.multiselect(
+"Select extraction methods to evaluate",
+["Soxhlet","Ultrasound (UAE)","Maceration","Microwave (MAE)","Supercritical CO2"],
+default=["Soxhlet"]
 )
 
-st.plotly_chart(fig)
+results = {}
+answers_store = {}
 
-st.header("Comparison example")
+for method in methods:
 
-data = pd.DataFrame({
-"Method":["Soxhlet","UAE","Maceration"],
-"Score":[4,9,7]
-})
+    st.header(method)
 
-fig2 = px.bar(
-data,
-x="Method",
-y="Score",
-color="Method",
-title="Greenness comparison"
-)
+    answers=[]
+    scores=[]
 
-st.plotly_chart(fig2)
+    for branch in criteria_tree:
+
+        st.subheader(branch)
+
+        for criterion in criteria_tree[branch]:
+
+            choice = st.radio(
+                criterion,
+                ["Green","Yellow","Red"],
+                horizontal=True,
+                key=f"{method}_{criterion}"
+            )
+
+            answers.append(choice)
+            scores.append(score_map[choice])
+
+    total_score=sum(scores)
+
+    results[method]=scores
+    answers_store[method]=answers
+
+    st.subheader(f"Total GET Score: {total_score} / 28")
+
+    if total_score>=22:
+        st.success("Excellent greenness")
+    elif total_score>=15:
+        st.warning("Moderate greenness")
+    else:
+        st.error("Low greenness")
+
+st.divider()
+
+if len(results)>0:
+
+    st.header("Greenness Radar Profile")
+
+    all_criteria=[c for branch in criteria_tree.values() for c in branch]
+
+    fig=go.Figure()
+
+    for method in results:
+
+        fig.add_trace(go.Scatterpolar(
+            r=results[method],
+            theta=all_criteria,
+            fill="toself",
+            name=method
+        ))
+
+    fig.update_layout(
+    polar=dict(radialaxis=dict(range=[0,2],visible=True)),
+    showlegend=True
+    )
+
+    st.plotly_chart(fig,use_container_width=True)
+
+    st.divider()
+
+    st.header("Greenness Score Comparison")
+
+    score_summary={
+    m:sum(results[m]) for m in results
+    }
+
+    df_scores=pd.DataFrame({
+    "Method":list(score_summary.keys()),
+    "Score":list(score_summary.values())
+    })
+
+    fig_bar=px.bar(
+    df_scores,
+    x="Method",
+    y="Score",
+    color="Method",
+    title="GET score comparison"
+    )
+
+    st.plotly_chart(fig_bar,use_container_width=True)
+
+    st.divider()
+
+    st.header("Criterion Heatmap")
+
+    matrix=list(results.values())
+
+    fig_heat,ax=plt.subplots(figsize=(12,4))
+
+    sns.heatmap(
+    matrix,
+    annot=True,
+    cmap="RdYlGn",
+    xticklabels=all_criteria,
+    yticklabels=list(results.keys())
+    )
+
+    st.pyplot(fig_heat)
+
+    st.divider()
+
+    st.header("Download Results")
+
+    export_rows=[]
+
+    for method in results:
+
+        for i,c in enumerate(all_criteria):
+
+            export_rows.append({
+            "Method":method,
+            "Criterion":c,
+            "Choice":answers_store[method][i],
+            "Score":results[method][i]
+            })
+
+    df_export=pd.DataFrame(export_rows)
+
+    st.download_button(
+    "Download results as CSV",
+    df_export.to_csv(index=False),
+    file_name="green_extraction_results.csv"
+    )
+
+st.divider()
+
+st.markdown("""
+### About GET
+
+The **Green Extraction Tree (GET)** evaluates the sustainability of natural product extraction processes through **six main branches**:
+
+- Sample
+- Solvents & reagents
+- Energy
+- Waste & byproducts
+- Process risk
+- Extract quality
+
+Each branch includes specific criteria that together define the environmental and operational greenness of the process.
+""")
