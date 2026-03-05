@@ -11,43 +11,60 @@ st.set_page_config(page_title="Green Extraction Tree Evaluator", layout="wide")
 st.title("🌿 Green Extraction Tree Evaluator")
 
 st.markdown("""
-Interactive platform implementing the **Green Extraction Tree (GET)** methodology.
+Implementation inspired by the **Green Extraction Tree (GET)** framework.
 
-Green = 2  
-Yellow = 1  
-Red = 0  
+Colors represent qualitative greenness:
 
-Maximum score = **28**
+🟢 Green = good  
+🟡 Yellow = acceptable  
+🔴 Red = problematic  
+
+A numeric score is calculated **only as a synthetic indicator**, not as the primary GET evaluation.
 """)
 
 # ------------------------------------------------
-# SOLVENT DATABASE
+# SOLVENT DATABASE (simplified green solvent guide)
 # ------------------------------------------------
 
 solvent_db = {
-    "Water": {"toxicity": 0},
-    "Ethanol": {"toxicity": 1},
-    "Methanol": {"toxicity": 2},
-    "Acetone": {"toxicity": 2},
-    "Hexane": {"toxicity": 3},
-    "Dichloromethane": {"toxicity": 4},
-    "Chloroform": {"toxicity": 5}
+
+"Water":0,
+"Ethanol":1,
+"Ethyl acetate":1,
+"Acetone":2,
+"Methanol":3,
+"Hexane":4,
+"Dichloromethane":5,
+"Chloroform":5
+
 }
 
 # ------------------------------------------------
 # SCORING FUNCTIONS
 # ------------------------------------------------
 
-def score_solvent(solvent):
-    tox = solvent_db[solvent]["toxicity"]
-    if tox <= 1:
+def color_score(value):
+
+    if value == 2:
+        return "green"
+    elif value == 1:
+        return "yellow"
+    else:
+        return "red"
+
+def solvent_score(solvent):
+
+    tox = solvent_db[solvent]
+
+    if tox <=1:
         return 2
-    elif tox <= 3:
+    elif tox <=3:
         return 1
     else:
         return 0
 
-def score_volume(v):
+def volume_score(v):
+
     if v < 50:
         return 2
     elif v < 200:
@@ -55,7 +72,8 @@ def score_volume(v):
     else:
         return 0
 
-def score_energy(e):
+def energy_score(e):
+
     if e < 0.5:
         return 2
     elif e < 2:
@@ -63,7 +81,8 @@ def score_energy(e):
     else:
         return 0
 
-def score_time(t):
+def time_score(t):
+
     if t < 30:
         return 2
     elif t < 120:
@@ -71,7 +90,8 @@ def score_time(t):
     else:
         return 0
 
-def score_yield(y):
+def yield_score(y):
+
     if y > 80:
         return 2
     elif y > 50:
@@ -79,7 +99,8 @@ def score_yield(y):
     else:
         return 0
 
-def score_waste(w):
+def waste_score(w):
+
     if w < 5:
         return 2
     elif w < 20:
@@ -87,7 +108,8 @@ def score_waste(w):
     else:
         return 0
 
-def score_throughput(t):
+def throughput_score(t):
+
     if t > 20:
         return 2
     elif t > 5:
@@ -95,7 +117,8 @@ def score_throughput(t):
     else:
         return 0
 
-def score_hazard(h):
+def hazard_score(h):
+
     if h == "Low":
         return 2
     elif h == "Medium":
@@ -103,7 +126,8 @@ def score_hazard(h):
     else:
         return 0
 
-def score_stability(s):
+def stability_score(s):
+
     if s == "Stable":
         return 2
     elif s == "Moderate":
@@ -111,7 +135,8 @@ def score_stability(s):
     else:
         return 0
 
-def score_renewable(r):
+def renewable_score(r):
+
     if r == "Yes":
         return 2
     elif r == "Partially":
@@ -119,7 +144,8 @@ def score_renewable(r):
     else:
         return 0
 
-def score_scalability(s):
+def scalability_score(s):
+
     if s == "High":
         return 2
     elif s == "Moderate":
@@ -128,14 +154,14 @@ def score_scalability(s):
         return 0
 
 # ------------------------------------------------
-# SESSION STORAGE
+# SESSION STATE
 # ------------------------------------------------
 
 if "methods" not in st.session_state:
     st.session_state.methods = []
 
 # ------------------------------------------------
-# SIDEBAR INPUT
+# INPUT PANEL
 # ------------------------------------------------
 
 st.sidebar.header("Extraction parameters")
@@ -143,22 +169,28 @@ st.sidebar.header("Extraction parameters")
 method_name = st.sidebar.text_input("Method name")
 
 solvent = st.sidebar.selectbox("Solvent", list(solvent_db.keys()))
-volume = st.sidebar.number_input("Solvent volume (mL)", 0.0, 1000.0, 50.0)
-energy = st.sidebar.number_input("Energy consumption (kWh)", 0.0, 10.0, 0.5)
-time = st.sidebar.number_input("Extraction time (min)", 1, 1000, 60)
 
-yield_percent = st.sidebar.slider("Yield (%)", 0, 100, 50)
+volume = st.sidebar.number_input("Solvent volume (mL)",0.0,1000.0,50.0)
 
-waste = st.sidebar.number_input("Waste (g)", 0.0, 500.0, 10.0)
-throughput = st.sidebar.number_input("Samples/hour", 1, 100, 5)
+energy = st.sidebar.number_input("Energy consumption (kWh)",0.0,10.0,0.5)
 
-hazard = st.sidebar.selectbox("Hazard level", ["Low", "Medium", "High"])
-renewable = st.sidebar.selectbox("Renewable raw material", ["Yes", "Partially", "No"])
+time = st.sidebar.number_input("Extraction time (min)",1,1000,60)
 
-sample_stability = st.sidebar.selectbox("Sample stability", ["Stable", "Moderate", "Unstable"])
-extract_stability = st.sidebar.selectbox("Extract stability", ["Stable", "Moderate", "Unstable"])
+yield_percent = st.sidebar.slider("Yield (%)",0,100,50)
 
-scalability = st.sidebar.selectbox("Industrial scalability", ["High", "Moderate", "Low"])
+waste = st.sidebar.number_input("Waste (g)",0.0,500.0,10.0)
+
+throughput = st.sidebar.number_input("Samples/hour",1,100,5)
+
+hazard = st.sidebar.selectbox("Hazard level",["Low","Medium","High"])
+
+renewable = st.sidebar.selectbox("Renewable raw material",["Yes","Partially","No"])
+
+sample_stability = st.sidebar.selectbox("Sample stability",["Stable","Moderate","Unstable"])
+
+extract_stability = st.sidebar.selectbox("Extract stability",["Stable","Moderate","Unstable"])
+
+scalability = st.sidebar.selectbox("Industrial scalability",["High","Moderate","Low"])
 
 # ------------------------------------------------
 # GET CALCULATION
@@ -168,208 +200,27 @@ def compute_get():
 
     tree = {
 
-        "Sample": [
-            ("Renewable raw material", score_renewable(renewable)),
-            ("Sample stability", score_stability(sample_stability))
-        ],
-
-        "Solvents": [
-            ("Solvent toxicity", score_solvent(solvent)),
-            ("Solvent amount", score_volume(volume))
-        ],
-
-        "Energy": [
-            ("Energy consumption", score_energy(energy)),
-            ("Process time", score_time(time))
-        ],
-
-        "Waste": [
-            ("Waste generation", score_waste(waste)),
-            ("Byproducts formation", score_waste(waste))
-        ],
-
-        "Process risk": [
-            ("Operational safety", score_hazard(hazard)),
-            ("Health hazards", score_hazard(hazard))
-        ],
-
-        "Extract quality": [
-            ("Extraction efficiency", score_yield(yield_percent)),
-            ("Extract stability", score_stability(extract_stability)),
-            ("Industrial scalability", score_scalability(scalability)),
-            ("Throughput", score_throughput(throughput))
-        ]
-
-    }
-
-    labels = []
-    scores = []
-
-    for branch in tree:
-        for item in tree[branch]:
-            labels.append(item[0])
-            scores.append(item[1])
-
-    total = sum(scores)
-
-    return tree, labels, scores, total
-
-# ------------------------------------------------
-# ADD METHOD
-# ------------------------------------------------
-
-if st.sidebar.button("Add method"):
-
-    tree, labels, scores, total = compute_get()
-
-    st.session_state.methods.append({
-        "name": method_name,
-        "tree": tree,
-        "labels": labels,
-        "scores": scores,
-        "total": total
-    })
-
-# ------------------------------------------------
-# DISPLAY METHODS + TREE
-# ------------------------------------------------
-
-for method in st.session_state.methods:
-
-    st.header(method["name"])
-
-    st.metric("GET Score", f'{method["total"]}/28')
-
-    st.subheader("Green Extraction Tree")
-
-    dot = Digraph()
-
-    dot.attr(rankdir="LR", ranksep="1.5", nodesep="1")
-
-    dot.node("GET", "GET", shape="box", style="filled", fillcolor="#e6f2ff")
-
-    for branch in method["tree"]:
-
-        branch_id = f"branch_{branch}"
-
-        dot.node(branch_id, branch, shape="ellipse", style="filled", fillcolor="#d9ead3")
-
-        dot.edge("GET", branch_id)
-
-        for name, value in method["tree"][branch]:
-
-            node_id = f"{branch}_{name}"
-
-            if value == 2:
-                color = "#4CAF50"
-            elif value == 1:
-                color = "#FFC107"
-            else:
-                color = "#F44336"
-
-            dot.node(node_id, label=name, style="filled", fillcolor=color)
-
-            dot.edge(branch_id, node_id)
-
-    st.graphviz_chart(dot, use_container_width=True)
-
-# ------------------------------------------------
-# RADAR COMPARISON
-# ------------------------------------------------
-
-if len(st.session_state.methods) > 1:
-
-    st.header("Radar comparison")
-
-    radar = go.Figure()
-
-    for method in st.session_state.methods:
-
-        radar.add_trace(go.Scatterpolar(
-            r=method["scores"],
-            theta=method["labels"],
-            fill="toself",
-            name=method["name"]
-        ))
-
-    radar.update_layout(polar=dict(radialaxis=dict(range=[0, 2])))
-
-    st.plotly_chart(radar, use_container_width=True)
-
-# ------------------------------------------------
-# RANKING
-# ------------------------------------------------
-
-if len(st.session_state.methods) > 1:
-
-    ranking = sorted(
-        st.session_state.methods,
-        key=lambda x: x["total"],
-        reverse=True
-    )
-
-    st.header("Greenest method ranking")
-
-    rank_df = pd.DataFrame({
-        "Method": [m["name"] for m in ranking],
-        "GET score": [m["total"] for m in ranking]
-    })
-
-    st.dataframe(rank_df)
-
-    fig = px.bar(rank_df, x="Method", y="GET score", color="Method")
-
-    st.plotly_chart(fig, use_container_width=True)
-
-# ------------------------------------------------
-# HEATMAP
-# ------------------------------------------------
-
-if len(st.session_state.methods) > 1:
-
-    st.header("Score heatmap")
-
-    matrix = [m["scores"] for m in st.session_state.methods]
-
-    labels = st.session_state.methods[0]["labels"]
-
-    names = [m["name"] for m in st.session_state.methods]
-
-    fig, ax = plt.subplots()
-
-    sns.heatmap(matrix,
-                annot=True,
-                cmap="RdYlGn",
-                xticklabels=labels,
-                yticklabels=names)
-
-    st.pyplot(fig)
-
-# ------------------------------------------------
-# EXPORT CSV
-# ------------------------------------------------
-
-if len(st.session_state.methods) > 0:
-
-    rows = []
-
-    for m in st.session_state.methods:
-        for i, c in enumerate(m["labels"]):
-
-            rows.append({
-                "Method": m["name"],
-                "Criterion": c,
-                "Score": m["scores"][i]
-            })
-
-    df = pd.DataFrame(rows)
-
-    csv = df.to_csv(index=False)
-
-    st.download_button(
-        "Download results CSV",
-        csv,
-        "GET_results.csv",
-        "text/csv"
-    )
+    "Sample":[
+    ("Renewable raw material",renewable_score(renewable)),
+    ("Sample stability",stability_score(sample_stability))
+    ],
+
+    "Solvents":[
+    ("Solvent toxicity",solvent_score(solvent)),
+    ("Solvent amount",volume_score(volume))
+    ],
+
+    "Energy":[
+    ("Energy consumption",energy_score(energy)),
+    ("Extraction time",time_score(time))
+    ],
+
+    "Waste":[
+    ("Waste generation",waste_score(waste)),
+    ("Byproduct formation",waste_score(waste))
+    ],
+
+    "Process risk":[
+    ("Operational safety",hazard_score(hazard)),
+    ("Health hazards",hazard
     
