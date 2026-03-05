@@ -422,3 +422,54 @@ if len(st.session_state.methods) > 0:
     "text/csv"
 
     )
+   import graphviz
+
+st.header("Green Extraction Tree")
+
+def draw_get_tree(tree):
+
+    dot = graphviz.Digraph()
+
+    dot.attr(rankdir="TB")
+
+    dot.node("GET","Green Extraction Tree",shape="box")
+
+    for branch in tree:
+
+        dot.node(branch,branch,shape="ellipse")
+
+        dot.edge("GET",branch)
+
+        for name,value in tree[branch]:
+
+            node_id = f"{branch}_{name}"
+
+            if value == 2:
+                color = "green"
+            elif value == 1:
+                color = "yellow"
+            else:
+                color = "red"
+
+            dot.node(
+                node_id,
+                name,
+                style="filled",
+                fillcolor=color
+            )
+
+            dot.edge(branch,node_id)
+
+    return dot
+
+
+# disegna l'albero per ogni metodo salvato
+for method in st.session_state.methods:
+
+    st.subheader(f"GET Tree — {method['name']}")
+
+    tree = method["tree"]
+
+    dot = draw_get_tree(tree)
+
+    st.graphviz_chart(dot)
