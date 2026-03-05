@@ -2,84 +2,56 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Green Extraction Tree 3.0", layout="wide")
+st.set_page_config(page_title="Green Extraction Tree 4.0", layout="wide")
 
-st.title("🌿 Green Extraction Tree Evaluator 3.0")
+st.title("🌿 Green Extraction Tree Evaluator 4.0")
 
 st.markdown("""
-Advanced evaluation tool based on the **Green Extraction Tree (GET)** framework.
+Interactive platform implementing the **Green Extraction Tree (GET)** framework.
 
-Each criterion is automatically classified:
+Each criterion receives:
 
 Green = 2  
 Yellow = 1  
 Red = 0  
 
-Maximum score = **28**
+Maximum GET score = **28**
 """)
 
-st.sidebar.header("Extraction parameters")
+# ---------------------------------------------------
+# solvent database
+# ---------------------------------------------------
 
-method_name = st.sidebar.text_input("Method name", "Extraction Method")
+solvent_db = {
+"Water":"green",
+"Ethanol":"green",
+"Methanol":"yellow",
+"Acetone":"yellow",
+"Hexane":"red",
+"Dichloromethane":"red",
+"Chloroform":"red"
+}
 
-solvent_type = st.sidebar.selectbox(
-    "Solvent type",
-    ["Water","Ethanol","Methanol","Hexane","Dichloromethane","Chloroform"]
-)
+# ---------------------------------------------------
+# scoring functions
+# ---------------------------------------------------
 
-solvent_volume = st.sidebar.number_input("Solvent volume (mL)", 0.0, 1000.0, 50.0)
+def solvent_score(solvent):
 
-energy = st.sidebar.number_input("Energy consumption (kWh)", 0.0, 10.0, 0.5)
+    c = solvent_db[solvent]
 
-time = st.sidebar.number_input("Extraction time (minutes)", 1, 1000, 60)
-
-yield_percent = st.sidebar.slider("Extraction yield (%)", 0, 100, 50)
-
-waste = st.sidebar.number_input("Waste generated (g)", 0.0, 500.0, 10.0)
-
-throughput = st.sidebar.number_input("Samples per hour", 1, 100, 5)
-
-hazard = st.sidebar.selectbox(
-    "Health hazard level",
-    ["Low","Medium","High"]
-)
-
-renewable_sample = st.sidebar.selectbox(
-    "Renewable raw material?",
-    ["Yes","Partially","No"]
-)
-
-sample_stability = st.sidebar.selectbox(
-    "Sample stability",
-    ["Stable","Moderate","Unstable"]
-)
-
-industrial_scalability = st.sidebar.selectbox(
-    "Industrial scalability",
-    ["High","Moderate","Low"]
-)
-
-extract_stability = st.sidebar.selectbox(
-    "Extract stability",
-    ["Stable","Moderate","Unstable"]
-)
-
-# ---------------------------
-# Scoring functions
-# ---------------------------
-
-def score_solvent_type(solvent):
-    green = ["Water","Ethanol"]
-    yellow = ["Methanol"]
-    if solvent in green:
+    if c == "green":
         return 2
-    elif solvent in yellow:
+    elif c == "yellow":
         return 1
     else:
         return 0
 
-def score_volume(v):
+def volume_score(v):
+
     if v < 50:
         return 2
     elif v < 200:
@@ -87,7 +59,8 @@ def score_volume(v):
     else:
         return 0
 
-def score_energy(e):
+def energy_score(e):
+
     if e < 0.5:
         return 2
     elif e < 2:
@@ -95,7 +68,8 @@ def score_energy(e):
     else:
         return 0
 
-def score_time(t):
+def time_score(t):
+
     if t < 30:
         return 2
     elif t < 120:
@@ -103,7 +77,8 @@ def score_time(t):
     else:
         return 0
 
-def score_yield(y):
+def yield_score(y):
+
     if y > 80:
         return 2
     elif y > 50:
@@ -111,7 +86,8 @@ def score_yield(y):
     else:
         return 0
 
-def score_waste(w):
+def waste_score(w):
+
     if w < 5:
         return 2
     elif w < 20:
@@ -119,7 +95,8 @@ def score_waste(w):
     else:
         return 0
 
-def score_throughput(t):
+def throughput_score(t):
+
     if t > 20:
         return 2
     elif t > 5:
@@ -127,7 +104,8 @@ def score_throughput(t):
     else:
         return 0
 
-def score_hazard(h):
+def hazard_score(h):
+
     if h == "Low":
         return 2
     elif h == "Medium":
@@ -135,15 +113,8 @@ def score_hazard(h):
     else:
         return 0
 
-def score_renewable(r):
-    if r == "Yes":
-        return 2
-    elif r == "Partially":
-        return 1
-    else:
-        return 0
+def stability_score(s):
 
-def score_stability(s):
     if s == "Stable":
         return 2
     elif s == "Moderate":
@@ -151,7 +122,17 @@ def score_stability(s):
     else:
         return 0
 
-def score_scalability(s):
+def renewable_score(r):
+
+    if r == "Yes":
+        return 2
+    elif r == "Partially":
+        return 1
+    else:
+        return 0
+
+def scalability_score(s):
+
     if s == "High":
         return 2
     elif s == "Moderate":
@@ -159,95 +140,128 @@ def score_scalability(s):
     else:
         return 0
 
-# ---------------------------
-# Criteria tree
-# ---------------------------
+# ---------------------------------------------------
+# sidebar input
+# ---------------------------------------------------
 
-criteria = {
+st.sidebar.header("Extraction parameters")
+
+method_name = st.sidebar.text_input("Method name","Extraction method")
+
+solvent = st.sidebar.selectbox("Solvent", list(solvent_db.keys()))
+
+volume = st.sidebar.number_input("Solvent volume (mL)",0.0,1000.0,50.0)
+
+energy = st.sidebar.number_input("Energy consumption (kWh)",0.0,10.0,0.5)
+
+time = st.sidebar.number_input("Extraction time (minutes)",1,1000,60)
+
+yield_percent = st.sidebar.slider("Yield (%)",0,100,50)
+
+waste = st.sidebar.number_input("Waste generated (g)",0.0,500.0,10.0)
+
+throughput = st.sidebar.number_input("Samples/hour",1,100,5)
+
+hazard = st.sidebar.selectbox("Health hazard",["Low","Medium","High"])
+
+renewable = st.sidebar.selectbox("Renewable raw material",["Yes","Partially","No"])
+
+sample_stability = st.sidebar.selectbox("Sample stability",["Stable","Moderate","Unstable"])
+
+extract_stability = st.sidebar.selectbox("Extract stability",["Stable","Moderate","Unstable"])
+
+scalability = st.sidebar.selectbox("Industrial scalability",["High","Moderate","Low"])
+
+# ---------------------------------------------------
+# GET tree
+# ---------------------------------------------------
+
+criteria_tree = {
+
 "Sample":[
-("Renewable raw material",score_renewable(renewable_sample)),
-("Sample stability",score_stability(sample_stability))
+("Renewable raw material", renewable_score(renewable)),
+("Sample stability", stability_score(sample_stability))
 ],
 
-"Solvents":[
-("Solvent toxicity",score_solvent_type(solvent_type)),
-("Solvent amount",score_volume(solvent_volume))
+"Solvents & reagents":[
+("Solvent toxicity", solvent_score(solvent)),
+("Solvent amount", volume_score(volume))
 ],
 
 "Energy":[
-("Energy consumption",score_energy(energy)),
-("Process time",score_time(time))
+("Energy consumption", energy_score(energy)),
+("Process time", time_score(time))
 ],
 
-"Waste":[
-("Waste generation",score_waste(waste)),
-("Byproducts formation",score_waste(waste))
+"Waste & byproducts":[
+("Waste generation", waste_score(waste)),
+("Byproducts formation", waste_score(waste))
 ],
 
 "Process risk":[
-("Operational safety",score_hazard(hazard)),
-("Health hazards",score_hazard(hazard))
+("Operational safety", hazard_score(hazard)),
+("Health hazards", hazard_score(hazard))
 ],
 
 "Extract quality":[
-("Extraction efficiency",score_yield(yield_percent)),
-("Extract stability",score_stability(extract_stability)),
-("Industrial scalability",score_scalability(industrial_scalability)),
-("Throughput",score_throughput(throughput))
+("Extraction efficiency", yield_score(yield_percent)),
+("Extract stability", stability_score(extract_stability)),
+("Industrial scalability", scalability_score(scalability)),
+("Throughput", throughput_score(throughput))
 ]
 }
 
-# ---------------------------
-# Calculate score
-# ---------------------------
+labels = []
+scores = []
 
-scores=[]
-labels=[]
+for branch in criteria_tree:
 
-for branch in criteria:
-
-    for item in criteria[branch]:
+    for item in criteria_tree[branch]:
 
         labels.append(item[0])
         scores.append(item[1])
 
-total_score=sum(scores)
+total_score = sum(scores)
+
+# ---------------------------------------------------
+# score output
+# ---------------------------------------------------
 
 st.header("GET Score")
 
-st.metric("Total score", f"{total_score} / 28")
+st.metric("Score",f"{total_score}/28")
 
-if total_score >=22:
+if total_score >= 22:
     st.success("Excellent greenness")
-elif total_score >=15:
+elif total_score >= 15:
     st.warning("Moderate greenness")
 else:
     st.error("Low greenness")
 
-# ---------------------------
-# Tree visualization
-# ---------------------------
+# ---------------------------------------------------
+# tree visualization
+# ---------------------------------------------------
 
 st.header("GET Tree")
 
-for branch in criteria:
+for branch in criteria_tree:
 
     st.subheader(branch)
 
-    for name,value in criteria[branch]:
+    for name,value in criteria_tree[branch]:
 
         if value == 2:
-            color="🟢"
-        elif value ==1:
-            color="🟡"
+            icon = "🟢"
+        elif value == 1:
+            icon = "🟡"
         else:
-            color="🔴"
+            icon = "🔴"
 
-        st.write(color, name)
+        st.write(icon,name)
 
-# ---------------------------
-# Radar chart
-# ---------------------------
+# ---------------------------------------------------
+# radar chart
+# ---------------------------------------------------
 
 st.header("Greenness radar")
 
@@ -262,51 +276,60 @@ fig.add_trace(go.Scatterpolar(
 
 fig.update_layout(
 polar=dict(radialaxis=dict(range=[0,2])),
-showlegend=False
+showlegend=True
 )
 
 st.plotly_chart(fig,use_container_width=True)
 
-# ---------------------------
-# Score breakdown
-# ---------------------------
+# ---------------------------------------------------
+# breakdown table
+# ---------------------------------------------------
 
-st.header("Score breakdown")
+df = pd.DataFrame({
 
-df=pd.DataFrame({
 "Criterion":labels,
 "Score":scores
+
 })
+
+st.header("Criterion breakdown")
 
 st.dataframe(df)
 
-# ---------------------------
-# Bar chart
-# ---------------------------
+# ---------------------------------------------------
+# bar chart
+# ---------------------------------------------------
 
-fig2=px.bar(df,x="Criterion",y="Score",color="Score")
+fig2 = px.bar(df,x="Criterion",y="Score",color="Score")
 
 st.plotly_chart(fig2,use_container_width=True)
 
-# ---------------------------
-# Export results
-# ---------------------------
+# ---------------------------------------------------
+# heatmap
+# ---------------------------------------------------
+
+st.header("Score heatmap")
+
+matrix = [scores]
+
+fig,ax = plt.subplots()
+
+sns.heatmap(matrix,annot=True,cmap="RdYlGn",
+xticklabels=labels,
+yticklabels=[method_name])
+
+st.pyplot(fig)
+
+# ---------------------------------------------------
+# export results
+# ---------------------------------------------------
 
 st.header("Export results")
 
-csv=df.to_csv(index=False)
+csv = df.to_csv(index=False)
 
 st.download_button(
 "Download CSV",
 csv,
-"GET_results.csv",
-"text/csv"
+"GET_results.csv"
 )
-
-# ---------------------------
-# Method comparison placeholder
-# ---------------------------
-
-st.header("Future comparison module")
-
-st.info("Future versions will allow comparison between multiple extraction methods.")
