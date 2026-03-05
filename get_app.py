@@ -23,8 +23,7 @@ score_map = {"Green": 2, "Yellow": 1, "Red": 0}
 
 total_score = 0
 
-st.image("https://upload.wikimedia.org/wikipedia/commons/3/3f/Green_leaf_icon.png", width=120)for c in criteria:
-    choice = st.selectbox(c, ["Green", "Yellow", "Red"])
+
     total_score += score_map[choice]
 
 st.subheader(f"Total Score: {total_score} / 28")
